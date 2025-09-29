@@ -20,7 +20,9 @@ cp -r DIME.Docker/Python/* volumes/dime/python
 cp -r DIME.Docker/ConfigExample/* volumes/dime/configs
 
 # load image
+# email cmisztur@mriiot.com for copy of image
 docker load -i DIME.Docker/dime_amd64.tar
+#docker load -i DIME.Docker/dime_arm64.tar
 docker images
 
 # run container
