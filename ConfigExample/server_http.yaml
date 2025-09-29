@@ -1,0 +1,5 @@
+server_http: &server_http
+  name: server_http
+  connector: WebServer
+  uri: http://localhost:8090/
+  web_root: ./Configs/web

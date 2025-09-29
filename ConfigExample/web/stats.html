@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIME Connector Status Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+        }
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .connected {
+            background-color: #28a745;
+        }
+        .disconnected {
+            background-color: #dc3545;
+        }
+        .card {
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 0.75rem 1.25rem;
+        }
+        .connector-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-right: 10px;
+        }
+        .connector-type {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-right: 10px;
+        }
+        .connector-direction {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            margin-right: 10px;
+        }
+        .source {
+            background-color: #e7f5ff;
+            color: #0077cc;
+        }
+        .sink {
+            background-color: #fff4e6;
+            color: #ff8c00;
+        }
+        .connector-indicators {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+        }
+        .indicator {
+            display: flex;
+            align-items: center;
+            margin-left: 15px;
+            font-size: 0.85rem;
+        }
+        .indicator-icon {
+            margin-right: 5px;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .stat-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+        .stats-group {
+            margin-bottom: 20px;
+        }
+        .group-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 5px;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .detail-label {
+            flex: 0 0 40%;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .detail-value {
+            flex: 0 0 60%;
+            font-size: 0.85rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .highlight-positive {
+            color: #28a745;
+        }
+        .highlight-negative {
+            color: #dc3545;
+        }
+        .highlight-warning {
+            color: #ffc107;
+        }
+        .status-pill {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .error-list {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+        .no-errors {
+            color: #6c757d;
+            font-style: italic;
+        }
+        .filter-item {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .connector-details {
+            display: none;
+            padding-top: 10px;
+        }
+        .toggle-details {
+            cursor: pointer;
+        }
+        .time-info {
+            font-size: 0.8rem;
+            color: #6c757d;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .connector-card {
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .connector-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .connector-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .summary-stats {
+            display: flex;
+            align-items: center;
+        }
+        .summary-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-left: 15px;
+            min-width: 60px;
+        }
+        .summary-value {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .summary-label {
+            font-size: 0.7rem;
+            color: #6c757d;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation header -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-gear-fill me-2"></i>DIME
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="index.html">
+                                <i class="bi bi-table me-1"></i>Data Explorer
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" href="stats.html">
+                                <i class="bi bi-speedometer2 me-1"></i>Connector Status
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="config.html">
+                                <i class="bi bi-gear me-1"></i>Configuration
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="dashboard-header">
+            <h1><i class="bi bi-speedometer2 me-2"></i>DIME Connector Status</h1>
+            <div class="connection-status">
+                <span id="connection-indicator" class="connection-indicator disconnected"></span>
+                <span id="connection-text">Disconnected</span>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <div>System Overview</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="stat-label">Total Connectors</div>
+                                <div class="stat-value" id="total-connectors">0</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-label">Active Connectors</div>
+                                <div class="stat-value" id="active-connectors">0</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-label">Faulted Connectors</div>
+                                <div class="stat-value" id="faulted-connectors">0</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-label">Total Messages</div>
+                                <div class="stat-value" id="total-messages">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text" id="search-addon"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="search-input" placeholder="Search connectors..." aria-label="Search" aria-describedby="search-addon">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" id="view-all-btn">All</button>
+                        <button type="button" class="btn btn-outline-secondary" id="view-sources-btn">Sources</button>
+                        <button type="button" class="btn btn-outline-secondary" id="view-sinks-btn">Sinks</button>
+                    </div>
+                    <button class="btn btn-outline-secondary ms-2" id="refresh-btn"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="connectors-container">
+            <!-- Connectors will be dynamically inserted here -->
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-arrow-repeat" style="font-size: 2rem;"></i>
+                <p class="mt-3">Waiting for connector data...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Store connector data
+        let connectors = {};
+        let filter = {
+            search: '',
+            type: 'all' // 'all', 'source', 'sink'
+        };
+
+        // Connect to WebSocket server
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname || 'localhost';
+            const port = 9998; // DIME WebSocket port for statistics
+            const ws = new WebSocket(`${protocol}//${host}:${port}`);
+            
+            ws.onopen = function() {
+                console.log('Connected to DIME WebSocket server');
+                document.getElementById('connection-indicator').className = 'connection-indicator connected';
+                document.getElementById('connection-text').innerText = 'Connected';
+            };
+            
+            ws.onclose = function() {
+                console.log('Disconnected from DIME WebSocket server');
+                document.getElementById('connection-indicator').className = 'connection-indicator disconnected';
+                document.getElementById('connection-text').innerText = 'Disconnected';
+                
+                // Try to reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    processConnectorData(data);
+                } catch (e) {
+                    console.error('Error processing message:', e);
+                }
+            };
+        }
+
+        // Process connector data
+        function processConnectorData(data) {
+            // Store/update connector data
+            if (data.Name) {
+                connectors[data.Name] = data;
+            }
+
+            // Update UI
+            updateConnectorCards();
+            updateSystemStats();
+        }
+
+        // Format number with commas
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Format duration in milliseconds
+        function formatDuration(ms) {
+            if (ms < 1) {
+                return "< 1ms";
+            } else if (ms < 1000) {
+                return ms + "ms";
+            } else {
+                return (ms / 1000).toFixed(2) + "s";
+            }
+        }
+
+        // Format date
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleString();
+        }
+
+        // Calculate time elapsed since a specific date
+        function timeElapsedSince(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - date;
+            
+            const seconds = Math.floor(diffMs / 1000);
+            if (seconds < 60) {
+                return seconds + " seconds ago";
+            }
+            
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) {
+                return minutes + " minute" + (minutes === 1 ? "" : "s") + " ago";
+            }
+            
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) {
+                return hours + " hour" + (hours === 1 ? "" : "s") + " ago";
+            }
+            
+            const days = Math.floor(hours / 24);
+            return days + " day" + (days === 1 ? "" : "s") + " ago";
+        }
+
+        // Update connector cards
+        function updateConnectorCards() {
+            const container = document.getElementById('connectors-container');
+            
+            // Clear loading message if present
+            if (container.querySelector('.text-center')) {
+                container.innerHTML = '';
+            }
+
+            // Filter connectors
+            const filteredConnectors = Object.values(connectors).filter(connector => {
+                const matchesSearch = connector.Name.toLowerCase().includes(filter.search.toLowerCase()) ||
+                                    connector.ConnectorType.toLowerCase().includes(filter.search.toLowerCase());
+                const matchesType = filter.type === 'all' || 
+                                  (filter.type === 'source' && connector.Direction === 'Source') ||
+                                  (filter.type === 'sink' && connector.Direction === 'Sink');
+                return matchesSearch && matchesType;
+            });
+
+            // Sort connectors by name
+            filteredConnectors.sort((a, b) => a.Name.localeCompare(b.Name));
+
+            // If no connectors match filter
+            if (filteredConnectors.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-search" style="font-size: 2rem;"></i>
+                        <p class="mt-3">No connectors match your filter</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create/update cards for each connector
+            filteredConnectors.forEach(connector => {
+                let existingCard = document.getElementById(`connector-${connector.Name}`);
+                
+                if (!existingCard) {
+                    // Create new card
+                    const card = createConnectorCard(connector);
+                    container.appendChild(card);
+                } else {
+                    // Update existing card
+                    updateConnectorCard(existingCard, connector);
+                }
+            });
+
+            // Remove cards for connectors that no longer exist or don't match filter
+            const cards = container.querySelectorAll('.connector-card');
+            cards.forEach(card => {
+                const connectorName = card.getAttribute('data-connector-name');
+                const connector = connectors[connectorName];
+                
+                if (!connector || !filteredConnectors.includes(connector)) {
+                    card.remove();
+                }
+            });
+        }
+
+        // Create connector card
+        function createConnectorCard(connector) {
+            const card = document.createElement('div');
+            card.className = 'card connector-card';
+            card.id = `connector-${connector.Name}`;
+            card.setAttribute('data-connector-name', connector.Name);
+            
+            // Determine status classes
+            const isConnected = connector.IsConnected;
+            const isFaulted = connector.IsFaulted;
+            
+            let statusClass = isConnected ? 'status-active' : 'status-inactive';
+            let statusIcon = isConnected ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
+            
+            if (isFaulted) {
+                statusClass = 'status-warning';
+                statusIcon = 'bi-exclamation-triangle-fill';
+            }
+            
+            // Direction class
+            const directionClass = connector.Direction.toLowerCase();
+            
+            // Create card content
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="connector-name">${connector.Name}</div>
+                    <div class="connector-type">${connector.ConnectorType}</div>
+                    <div class="connector-direction ${directionClass}">${connector.Direction}</div>
+                    <div class="connector-indicators">
+                        <div class="indicator">
+                            <div class="indicator-icon">
+                                <span class="status-pill ${statusClass}">
+                                    <i class="bi ${statusIcon} me-1"></i>
+                                    ${isConnected ? (isFaulted ? 'Faulted' : 'Connected') : 'Disconnected'}
+                                </span>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-down toggle-details"></i>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="connector-summary">
+                        <div class="summary-stats">
+                            <div class="summary-stat">
+                                <div class="summary-value">${formatNumber(connector.MessagesAccepted)}</div>
+                                <div class="summary-label">Messages</div>
+                            </div>
+                            <div class="summary-stat">
+                                <div class="summary-value">${formatDuration(connector.LastLoopMs)}</div>
+                                <div class="summary-label">Loop Time</div>
+                            </div>
+                            <div class="summary-stat">
+                                <div class="summary-value">${connector.FaultCount}</div>
+                                <div class="summary-label">Faults</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="connector-details">
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="stats-group">
+                                    <div class="group-title">Messages</div>
+                                    <div class="stats-grid">
+                                        <div>
+                                            <div class="stat-label">Attempted</div>
+                                            <div class="stat-value">${formatNumber(connector.MessagesAttempted)}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Accepted</div>
+                                            <div class="stat-value">${formatNumber(connector.MessagesAccepted)}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Success Rate</div>
+                                            <div class="stat-value">
+                                                ${connector.MessagesAttempted > 0 ? 
+                                                    (connector.MessagesAccepted / connector.MessagesAttempted * 100).toFixed(1) + '%' : 
+                                                    'N/A'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="stats-group">
+                                    <div class="group-title">Timing (ms)</div>
+                                    <div class="stats-grid">
+                                        <div>
+                                            <div class="stat-label">Min Loop</div>
+                                            <div class="stat-value">${connector.MinimumLoopMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Max Loop</div>
+                                            <div class="stat-value">${connector.MaximumLoopMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Last Loop</div>
+                                            <div class="stat-value">${connector.LastLoopMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Min Read</div>
+                                            <div class="stat-value">${connector.MinimumReadMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Max Read</div>
+                                            <div class="stat-value">${connector.MaximumReadMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Last Read</div>
+                                            <div class="stat-value">${connector.LastReadMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Min Script</div>
+                                            <div class="stat-value">${connector.MinimumScriptMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Max Script</div>
+                                            <div class="stat-value">${connector.MaximumScriptMs}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Last Script</div>
+                                            <div class="stat-value">${connector.LastScriptMs}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="stats-group">
+                                    <div class="group-title">Connection</div>
+                                    <div class="stats-grid">
+                                        <div>
+                                            <div class="stat-label">Status</div>
+                                            <div class="stat-value">${isConnected ? 
+                                                '<span class="highlight-positive">Connected</span>' : 
+                                                '<span class="highlight-negative">Disconnected</span>'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Faulted</div>
+                                            <div class="stat-value">${isFaulted ? 
+                                                '<span class="highlight-negative">Yes</span>' : 
+                                                '<span class="highlight-positive">No</span>'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Connect Count</div>
+                                            <div class="stat-value">${connector.ConnectCount}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Disconnect Count</div>
+                                            <div class="stat-value">${connector.DisconnectCount}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Fault Count</div>
+                                            <div class="stat-value">${connector.FaultCount}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Outbox Send Fails</div>
+                                            <div class="stat-value">${connector.OutboxSendFailCount}</div>
+                                        </div>
+                                        <div>
+                                            <div class="stat-label">Loop Count</div>
+                                            <div class="stat-value">${connector.LoopCount}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                ${isFaulted ? `
+                                <div class="stats-group">
+                                    <div class="group-title">Fault Message</div>
+                                    <div class="alert alert-danger mb-3" role="alert">
+                                        ${connector.FaultMessage || 'No fault message available'}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <div class="stats-group">
+                                    <div class="group-title">Filters</div>
+                                    <div>
+                                        <div class="stat-label">Exclusion Filters</div>
+                                        <div class="stat-value mb-1">
+                                            ${connector.ActiveExclusionFilters && connector.ActiveExclusionFilters.length > 0 ? 
+                                                connector.ActiveExclusionFilters.map(filter => 
+                                                    `<span class="filter-item">${filter}</span>`
+                                                ).join('') : 
+                                                '<span class="text-muted">None</span>'}
+                                        </div>
+                                        
+                                        <div class="stat-label">Inclusion Filters</div>
+                                        <div class="stat-value">
+                                            ${connector.ActiveInclusionFilters && connector.ActiveInclusionFilters.length > 0 ? 
+                                                connector.ActiveInclusionFilters.map(filter => 
+                                                    `<span class="filter-item">${filter}</span>`
+                                                ).join('') : 
+                                                '<span class="text-muted">None</span>'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-group">
+                            <div class="group-title">Recent Errors</div>
+                            <div class="error-list">
+                                ${connector.RecentErrors && connector.RecentErrors.Items && connector.RecentErrors.Items.length > 0 ? 
+                                    connector.RecentErrors.Items.map(error => 
+                                        `<div class="alert alert-danger mb-2 p-2">${error}</div>`
+                                    ).join('') : 
+                                    '<div class="no-errors">No recent errors</div>'}
+                            </div>
+                        </div>
+                        
+                        <div class="time-info">
+                            <div>Started: ${formatDate(connector.StartTime)}</div>
+                            <div>Last Update: ${timeElapsedSince(connector.LastUpdate)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add click event to toggle details
+            card.addEventListener('click', (e) => {
+                const details = card.querySelector('.connector-details');
+                const toggleIcon = card.querySelector('.toggle-details');
+                
+                // If clicking on a specific element within details, don't toggle
+                if (e.target.closest('.connector-details') && !e.target.closest('.group-title')) {
+                    return;
+                }
+                
+                const isVisible = details.style.display === 'block';
+                
+                // Hide all other details first
+                document.querySelectorAll('.connector-details').forEach(detail => {
+                    detail.style.display = 'none';
+                });
+                document.querySelectorAll('.toggle-details').forEach(icon => {
+                    icon.classList.remove('bi-chevron-up');
+                    icon.classList.add('bi-chevron-down');
+                });
+                
+                // Toggle this detail
+                if (!isVisible) {
+                    details.style.display = 'block';
+                    toggleIcon.classList.remove('bi-chevron-down');
+                    toggleIcon.classList.add('bi-chevron-up');
+                }
+            });
+            
+            return card;
+        }
+
+        // Update connector card
+        function updateConnectorCard(card, connector) {
+            // Check if details are currently expanded
+            const details = card.querySelector('.connector-details');
+            const isExpanded = details && details.style.display === 'block';
+            
+            // Replace the entire card to ensure all data is updated
+            const newCard = createConnectorCard(connector);
+            card.replaceWith(newCard);
+            
+            // If it was expanded before, keep it expanded
+            if (isExpanded) {
+                const newDetails = newCard.querySelector('.connector-details');
+                const newToggleIcon = newCard.querySelector('.toggle-details');
+                
+                if (newDetails) {
+                    newDetails.style.display = 'block';
+                    if (newToggleIcon) {
+                        newToggleIcon.classList.remove('bi-chevron-down');
+                        newToggleIcon.classList.add('bi-chevron-up');
+                    }
+                }
+            }
+        }
+
+        // Update system statistics
+        function updateSystemStats() {
+            const connectorValues = Object.values(connectors);
+            
+            // Calculate statistics
+            const totalConnectors = connectorValues.length;
+            const activeConnectors = connectorValues.filter(c => c.IsConnected).length;
+            const faultedConnectors = connectorValues.filter(c => c.IsFaulted).length;
+            const totalMessages = connectorValues.reduce((sum, c) => sum + c.MessagesAccepted, 0);
+            
+            // Update UI
+            document.getElementById('total-connectors').textContent = totalConnectors;
+            document.getElementById('active-connectors').textContent = activeConnectors;
+            document.getElementById('faulted-connectors').textContent = faultedConnectors;
+            document.getElementById('total-messages').textContent = formatNumber(totalMessages);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to WebSocket
+            connectWebSocket();
+            
+            // Set up event listeners
+            document.getElementById('search-input').addEventListener('input', function() {
+                filter.search = this.value.trim();
+                updateConnectorCards();
+            });
+            
+            document.getElementById('view-all-btn').addEventListener('click', function() {
+                document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                filter.type = 'all';
+                updateConnectorCards();
+            });
+            
+            document.getElementById('view-sources-btn').addEventListener('click', function() {
+                document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                filter.type = 'source';
+                updateConnectorCards();
+            });
+            
+            document.getElementById('view-sinks-btn').addEventListener('click', function() {
+                document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                filter.type = 'sink';
+                updateConnectorCards();
+            });
+            
+            document.getElementById('refresh-btn').addEventListener('click', function() {
+                // Add spin animation
+                const icon = this.querySelector('i');
+                icon.classList.add('bi-arrow-clockwise-animate');
+                icon.style.animation = 'spin 1s linear';
+                
+                // Force update
+                updateConnectorCards();
+                updateSystemStats();
+                
+                // Remove animation after a short delay
+                setTimeout(() => {
+                    icon.style.animation = '';
+                }, 1000);
+            });
+            
+            // Add animation keyframes for refresh button
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html>

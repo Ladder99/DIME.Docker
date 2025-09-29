@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIME Data Explorer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+        }
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .connected {
+            background-color: #28a745;
+        }
+        .disconnected {
+            background-color: #dc3545;
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .metric-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .metric-row:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        .value-changed-highlight {
+            animation: highlight 1s ease-out;
+        }
+        @keyframes highlight {
+            0% { background-color: rgba(255, 193, 7, 0.5); }
+            100% { background-color: transparent; }
+        }
+        .value-cell {
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .timestamp-cell {
+            white-space: nowrap;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        #metric-count {
+            font-size: 85%;
+            color: #6c757d;
+            margin-left: 10px;
+        }
+        .chart-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .data-age-new { color: #28a745; }
+        .data-age-recent { color: #17a2b8; }
+        .data-age-old { color: #6c757d; }
+        .data-age-stale { color: #dc3545; }
+        .data-type-number { background-color: rgba(23, 162, 184, 0.1); }
+        .data-type-boolean { background-color: rgba(40, 167, 69, 0.1); }
+        .data-type-string { background-color: rgba(108, 117, 125, 0.1); }
+        .data-type-object { background-color: rgba(0, 123, 255, 0.1); }
+        #history-container {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Navigation header -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-gear-fill me-2"></i>DIME
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" href="index.html">
+                                <i class="bi bi-table me-1"></i>Data Explorer
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="stats.html">
+                                <i class="bi bi-speedometer2 me-1"></i>Connector Status
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="config.html">
+                                <i class="bi bi-gear me-1"></i>Configuration
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2>
+                        <i class="bi bi-table me-2"></i>
+                        DIME Data Explorer
+                        <small id="metric-count" class="text-muted">(0 metrics)</small>
+                    </h2>
+                    <div class="connection-status">
+                        <span id="connection-indicator" class="connection-indicator disconnected"></span>
+                        <span id="connection-text">Disconnected</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-grid-3x3-gap me-1"></i> Live Metrics</span>
+                            <div class="input-group" style="width: 300px;">
+                                <input type="text" class="form-control" id="search-input" placeholder="Search metrics...">
+                                <button class="btn btn-outline-secondary" id="refresh-btn">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0" id="metrics-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40%">Metric Path</th>
+                                        <th style="width: 30%">Value</th>
+                                        <th style="width: 20%">Last Update</th>
+                                        <th style="width: 10%">Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="metrics-table-body">
+                                    <!-- Metrics will be populated dynamically -->
+                                    <tr class="text-center text-muted">
+                                        <td colspan="4">
+                                            <div class="py-5">
+                                                <i class="bi bi-arrow-clockwise" style="font-size: 2rem;"></i>
+                                                <p class="mt-2">Waiting for data...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" id="history-container">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="chart-toolbar">
+                            <div>
+                                <i class="bi bi-graph-up me-1"></i>
+                                Metric History: <span id="selected-metric-path" class="fw-bold">-</span>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary time-range active" data-range="1m">1m</button>
+                                <button class="btn btn-sm btn-outline-secondary time-range" data-range="5m">5m</button>
+                                <button class="btn btn-sm btn-outline-secondary time-range" data-range="15m">15m</button>
+                                <button class="btn btn-sm btn-outline-secondary time-range" data-range="30m">30m</button>
+                                <button class="btn btn-sm btn-outline-secondary time-range" data-range="1h">1h</button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" id="close-history-btn">
+                                <i class="bi bi-x-lg"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="history-chart"></canvas>
+                        </div>
+                        <div class="mt-3">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-body py-2">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="text-muted">Current:</div>
+                                                <div id="stat-current" class="fw-bold">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-body py-2">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="text-muted">Min:</div>
+                                                <div id="stat-min" class="fw-bold">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-body py-2">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="text-muted">Max:</div>
+                                                <div id="stat-max" class="fw-bold">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-body py-2">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="text-muted">Average:</div>
+                                                <div id="stat-avg" class="fw-bold">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+    <script>
+        // Store all received metrics
+        const metrics = {};
+        const metricHistory = {};
+        const MAX_HISTORY_POINTS = 1000;
+        
+        // Settings
+        let currentSearchTerm = '';
+        let selectedMetricPath = null;
+        let historyChart = null;
+        
+        // Time range for historical view (in minutes)
+        let timeRange = 1;
+        
+        // Connect to WebSocket server
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname || 'localhost';
+            const port = 8092; // Default DIME WebSocket port
+            const ws = new WebSocket(`${protocol}//${host}:${port}`);
+            
+            ws.onopen = function() {
+                console.log('Connected to DIME WebSocket server');
+                document.getElementById('connection-indicator').className = 'connection-indicator connected';
+                document.getElementById('connection-text').innerText = 'Connected';
+            };
+            
+            ws.onclose = function() {
+                console.log('Disconnected from DIME WebSocket server');
+                document.getElementById('connection-indicator').className = 'connection-indicator disconnected';
+                document.getElementById('connection-text').innerText = 'Disconnected';
+                
+                // Try to reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    processMessage(message);
+                } catch (e) {
+                    console.error('Error processing message:', e);
+                }
+            };
+        }
+        
+        // Process incoming WebSocket messages
+        function processMessage(message) {
+            // Skip if no Path property
+            if (!message.Path) return;
+            
+            const path = message.Path;
+            const data = message.Data;
+            const timestamp = message.Timestamp * 1000; // Convert to milliseconds
+            
+            // Skip system messages for display
+            if (path.includes('/$SYSTEM/')) {
+                return;
+            }
+            
+            // Process object type messages by flattening them
+            if (typeof data === 'object' && data !== null) {
+                // For each property in the object, create a separate metric
+                for (const [key, value] of Object.entries(data)) {
+                    const nestedPath = `${path}.${key}`;
+                    const nestedMessage = {
+                        Path: nestedPath,
+                        Data: value,
+                        Timestamp: message.Timestamp
+                    };
+                    
+                    // Process this as a separate message
+                    processMessage(nestedMessage);
+                }
+                
+                // Store the original object too, but mark it as a parent
+                storeMetric(path, data, timestamp, true);
+            } else {
+                // Store simple value metrics
+                storeMetric(path, data, timestamp, false);
+            }
+        }
+        
+        // Store a metric in the metrics object and history
+        function storeMetric(path, data, timestamp, isParent) {
+            // Store or update the metric
+            const wasUpdated = path in metrics;
+            metrics[path] = {
+                path: path,
+                value: data,
+                timestamp: timestamp,
+                type: typeof data,
+                isParent: isParent,
+                displayValue: formatValue(data)
+            };
+            
+            // Add to history (only for non-objects or if explicitly enabled for objects)
+            if (typeof data !== 'object' || isParent === false) {
+                if (!metricHistory[path]) {
+                    metricHistory[path] = [];
+                }
+                
+                metricHistory[path].push({
+                    value: data,
+                    timestamp: timestamp
+                });
+                
+                // Limit history size
+                if (metricHistory[path].length > MAX_HISTORY_POINTS) {
+                    metricHistory[path].shift();
+                }
+            }
+            
+            // Update metrics table
+            updateMetricsTable(path, wasUpdated);
+            
+            // Update the metric count
+            document.getElementById('metric-count').textContent = `(${Object.keys(metrics).length} metrics)`;
+            
+            // Update history chart if this metric is selected
+            if (selectedMetricPath === path) {
+                updateHistoryChart();
+            }
+        }
+        
+        // Format value for display
+        function formatValue(value) {
+            if (value === null || value === undefined) {
+                return 'null';
+            }
+            
+            if (typeof value === 'object') {
+                try {
+                    // Pretty format JSON with 2-space indentation
+                    return JSON.stringify(value, null, 2);
+                } catch (e) {
+                    return '[Object]';
+                }
+            }
+            
+            if (typeof value === 'number') {
+                // Format numbers nicely
+                return Number.isInteger(value) ? value.toString() : value.toFixed(2);
+            }
+            
+            return value.toString();
+        }
+        
+        // Update the metrics table
+        function updateMetricsTable(updatedPath, wasUpdated) {
+            const tableBody = document.getElementById('metrics-table-body');
+            
+            // Clear "waiting for data" message if present
+            if (tableBody.children.length === 1 && tableBody.children[0].classList.contains('text-center')) {
+                tableBody.innerHTML = '';
+            }
+            
+            // Filter metrics based on search
+            const filteredMetrics = Object.values(metrics).filter(metric => {
+                return currentSearchTerm === '' || 
+                    metric.path.toLowerCase().includes(currentSearchTerm.toLowerCase());
+            });
+            
+            // Sort metrics by path
+            filteredMetrics.sort((a, b) => a.path.localeCompare(b.path));
+            
+            // Check if we need to recreate the entire table
+            if (!wasUpdated || tableBody.children.length === 0) {
+                // Recreate the entire table
+                tableBody.innerHTML = '';
+                
+                filteredMetrics.forEach(metric => {
+                    // Create row for this metric
+                    const row = createMetricRow(metric);
+                    tableBody.appendChild(row);
+                    
+                    // Highlight if this is the updated metric
+                    if (metric.path === updatedPath) {
+                        highlightUpdatedRow(row);
+                    }
+                });
+                
+                // If no metrics match the filter
+                if (filteredMetrics.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.className = 'text-center text-muted';
+                    emptyRow.innerHTML = `
+                        <td colspan="4">
+                            <div class="py-3">
+                                <i class="bi bi-search"></i>
+                                <p class="m-0">No metrics match your filter</p>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(emptyRow);
+                }
+            } else {
+                // Just update the changed row
+                const existingRow = document.querySelector(`tr[data-path="${updatedPath}"]`);
+                if (existingRow) {
+                    const metric = metrics[updatedPath];
+                    
+                    // Check if the row should be visible based on current search
+                    const shouldBeVisible = currentSearchTerm === '' || 
+                        metric.path.toLowerCase().includes(currentSearchTerm.toLowerCase());
+                    
+                    if (shouldBeVisible) {
+                        // Update row content
+                        const valueCell = existingRow.querySelector('.value-cell');
+                        valueCell.textContent = metric.displayValue;
+                        
+                        const timestampCell = existingRow.querySelector('.timestamp-cell');
+                        timestampCell.textContent = formatTimestamp(metric.timestamp);
+                        updateTimestampClass(timestampCell, metric.timestamp);
+                        
+                        // Highlight the updated row
+                        highlightUpdatedRow(existingRow);
+                    } else {
+                        // Remove this row if it doesn't match current search
+                        existingRow.remove();
+                    }
+                } else if (filteredMetrics.some(m => m.path === updatedPath)) {
+                    // Row doesn't exist but should be shown - recreate the whole table
+                    updateMetricsTable(updatedPath, false);
+                    return;
+                }
+            }
+        }
+        
+        // Create a row for a metric
+        function createMetricRow(metric) {
+            const row = document.createElement('tr');
+            row.className = 'metric-row';
+            row.setAttribute('data-path', metric.path);
+            
+            // Determine CSS classes based on data type
+            const typeClass = `data-type-${metric.type}`;
+            
+            row.innerHTML = `
+                <td>${metric.path}</td>
+                <td class="value-cell ${typeClass}">${metric.displayValue}</td>
+                <td class="timestamp-cell">${formatTimestamp(metric.timestamp)}</td>
+                <td>${metric.type}</td>
+            `;
+            
+            // Update timestamp class
+            updateTimestampClass(row.querySelector('.timestamp-cell'), metric.timestamp);
+            
+            // Add click handler
+            row.addEventListener('click', () => {
+                showMetricHistory(metric.path);
+            });
+            
+            return row;
+        }
+        
+        // Highlight a row that was just updated
+        function highlightUpdatedRow(row) {
+            // Remove existing animation
+            row.classList.remove('value-changed-highlight');
+            
+            // Force browser to recognize the removal
+            void row.offsetWidth;
+            
+            // Add the animation class back
+            row.classList.add('value-changed-highlight');
+        }
+        
+        // Format timestamp for display
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString();
+        }
+        
+        // Update timestamp cell styling based on age
+        function updateTimestampClass(cell, timestamp) {
+            const now = Date.now();
+            const age = now - timestamp;
+            
+            // Remove all existing age classes
+            cell.classList.remove('data-age-new', 'data-age-recent', 'data-age-old', 'data-age-stale');
+            
+            // Add appropriate class based on age
+            if (age < 5000) { // Less than 5 seconds
+                cell.classList.add('data-age-new');
+            } else if (age < 60000) { // Less than 1 minute
+                cell.classList.add('data-age-recent');
+            } else if (age < 300000) { // Less than 5 minutes
+                cell.classList.add('data-age-old');
+            } else { // More than 5 minutes
+                cell.classList.add('data-age-stale');
+            }
+        }
+        
+        // Show history for a metric
+        function showMetricHistory(path) {
+            selectedMetricPath = path;
+            document.getElementById('selected-metric-path').textContent = path;
+            document.getElementById('history-container').style.display = 'block';
+            
+            // Highlight the selected row
+            const rows = document.querySelectorAll('.metric-row');
+            rows.forEach(row => {
+                row.classList.remove('table-active');
+                if (row.getAttribute('data-path') === path) {
+                    row.classList.add('table-active');
+                }
+            });
+            
+            // Update the chart
+            updateHistoryChart();
+            
+            // Scroll to the history section
+            document.getElementById('history-container').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Update the history chart
+        function updateHistoryChart() {
+            const history = metricHistory[selectedMetricPath] || [];
+            const metric = metrics[selectedMetricPath];
+            
+            // If this is an object type, show a message
+            if (metric && metric.isParent) {
+                // Clear existing chart
+                if (historyChart) {
+                    historyChart.destroy();
+                    historyChart = null;
+                }
+                
+                // Display a message in the chart container
+                const chartContainer = document.querySelector('.chart-container');
+                chartContainer.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This is a complex object. Click on its individual properties in the table above to view their history.
+                    </div>
+                `;
+                
+                // Clear statistics
+                document.getElementById('stat-min').textContent = '-';
+                document.getElementById('stat-max').textContent = '-';
+                document.getElementById('stat-avg').textContent = '-';
+                document.getElementById('stat-current').textContent = '-';
+                
+                return;
+            }
+            
+            // Filter history based on time range
+            const now = Date.now();
+            const rangeStart = now - (timeRange * 60 * 1000); // Convert minutes to milliseconds
+            
+            const filteredHistory = history.filter(point => point.timestamp >= rangeStart);
+            
+            // Determine how to display based on data type
+            const dataType = metric ? metric.type : null;
+            
+            // Check if we should treat string as numeric
+            let isNumericString = false;
+            if (dataType === 'string' && filteredHistory.length > 0) {
+                // Check if all values can be parsed as numbers
+                isNumericString = filteredHistory.every(point => {
+                    const numValue = parseFloat(point.value);
+                    return !isNaN(numValue) && point.value.trim() !== '';
+                });
+            }
+            
+            // For string type that can't be treated as numeric, display as a table
+            if (dataType === 'string' && !isNumericString) {
+                // Clear existing chart
+                if (historyChart) {
+                    historyChart.destroy();
+                    historyChart = null;
+                }
+                
+                // Create and display a table for string values
+                const chartContainer = document.querySelector('.chart-container');
+                
+                // Reverse the filtered history so the newest entries are at the top
+                const sortedHistory = [...filteredHistory].sort((a, b) => b.timestamp - a.timestamp);
+                
+                let tableHtml = `
+                    <div class="table-responsive" style="height: 300px;">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%">Timestamp</th>
+                                    <th style="width: 75%">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                if (sortedHistory.length === 0) {
+                    tableHtml += `
+                        <tr>
+                            <td colspan="2" class="text-center">No data available for the selected time range</td>
+                        </tr>
+                    `;
+                } else {
+                    sortedHistory.forEach(point => {
+                        const date = new Date(point.timestamp);
+                        const formattedTime = date.toLocaleTimeString();
+                        tableHtml += `
+                            <tr>
+                                <td>${formattedTime}</td>
+                                <td>${point.value}</td>
+                            </tr>
+                        `;
+                    });
+                }
+                
+                tableHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                chartContainer.innerHTML = tableHtml;
+                
+                // Update statistics
+                const current = history.length > 0 ? history[history.length - 1].value : null;
+                document.getElementById('stat-current').textContent = current !== null ? current.toString() : '-';
+                
+                // Set other statistics to not applicable for strings
+                document.getElementById('stat-min').textContent = 'N/A';
+                document.getElementById('stat-max').textContent = 'N/A';
+                document.getElementById('stat-avg').textContent = 'N/A';
+                
+                return;
+            }
+            
+            // Restore chart canvas if it was replaced
+            const chartContainer = document.querySelector('.chart-container');
+            if (!chartContainer.querySelector('canvas')) {
+                chartContainer.innerHTML = '<canvas id="history-chart"></canvas>';
+            }
+            
+            // For numeric, boolean, and numeric strings - create chart data
+            let chartData;
+            
+            if (dataType === 'number' || isNumericString) {
+                // For numbers or numeric strings, convert to numbers
+                chartData = filteredHistory.map(point => ({
+                    x: point.timestamp,
+                    y: typeof point.value === 'string' ? parseFloat(point.value) : point.value
+                }));
+            } else if (dataType === 'boolean') {
+                // For booleans, convert to 1/0
+                chartData = filteredHistory.map(point => ({
+                    x: point.timestamp,
+                    y: point.value ? 1 : 0
+                }));
+            } else {
+                // Default for other types
+                chartData = [];
+            }
+            
+            // Calculate statistics
+            let min = Number.MAX_VALUE;
+            let max = Number.MIN_VALUE;
+            let sum = 0;
+            let count = 0;
+            
+            chartData.forEach(point => {
+                if (point.y !== null && !isNaN(point.y)) {
+                    min = Math.min(min, point.y);
+                    max = Math.max(max, point.y);
+                    sum += point.y;
+                    count++;
+                }
+            });
+            
+            const avg = count > 0 ? sum / count : 0;
+            const current = history.length > 0 ? history[history.length - 1].value : null;
+            const currentFormatted = current !== null ? 
+                (typeof current === 'number' || isNumericString ? 
+                    (Number.isInteger(parseFloat(current)) ? parseFloat(current).toString() : parseFloat(current).toFixed(2)) 
+                    : current.toString()) 
+                : '-';
+            
+            // Update statistics display
+            document.getElementById('stat-min').textContent = count > 0 ? 
+                (Number.isInteger(min) ? min.toString() : min.toFixed(2)) : '-';
+            document.getElementById('stat-max').textContent = count > 0 ? 
+                (Number.isInteger(max) ? max.toString() : max.toFixed(2)) : '-';
+            document.getElementById('stat-avg').textContent = count > 0 ? 
+                (Number.isInteger(avg) ? avg.toString() : avg.toFixed(2)) : '-';
+            document.getElementById('stat-current').textContent = currentFormatted;
+            
+            // Adjust chart configuration based on data type
+            let chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            tooltipFormat: 'HH:mm:ss',
+                            displayFormats: {
+                                millisecond: 'HH:mm:ss.SSS',
+                                second: 'HH:mm:ss',
+                                minute: 'HH:mm',
+                                hour: 'HH:mm'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    legend: {
+                        display: false
+                    }
+                }
+            };
+            
+            // Special configuration for boolean values
+            if (dataType === 'boolean') {
+                chartOptions.scales.y.min = 0;
+                chartOptions.scales.y.max = 1;
+                chartOptions.scales.y.ticks = {
+                    callback: function(value) {
+                        return value === 0 ? 'false' : 'true';
+                    }
+                };
+            }
+            
+            // Add title to indicate numeric string if needed
+            if (isNumericString) {
+                chartOptions.plugins.title = {
+                    display: true,
+                    text: 'Numeric String Values (Converted to Numbers)',
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                };
+            }
+            
+            // Initialize chart if needed
+            if (!historyChart) {
+                const ctx = document.getElementById('history-chart').getContext('2d');
+                historyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Value',
+                            data: chartData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: true,
+                            tension: 0.1,
+                            stepped: dataType === 'boolean' ? 'before' : false
+                        }]
+                    },
+                    options: chartOptions
+                });
+            } else {
+                // Update existing chart
+                historyChart.data.datasets[0].data = chartData;
+                // Update options if needed
+                historyChart.options = chartOptions;
+                historyChart.update();
+            }
+        }
+        
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to WebSocket
+            connectWebSocket();
+            
+            // Set up event listeners
+            document.getElementById('search-input').addEventListener('input', function() {
+                currentSearchTerm = this.value.trim();
+                updateMetricsTable(null, false); // Recreate table
+            });
+            
+            document.getElementById('refresh-btn').addEventListener('click', function() {
+                updateMetricsTable(null, false); // Recreate table
+            });
+            
+            document.getElementById('close-history-btn').addEventListener('click', function() {
+                document.getElementById('history-container').style.display = 'none';
+                selectedMetricPath = null;
+                
+                // Remove highlight from selected row
+                const rows = document.querySelectorAll('.metric-row');
+                rows.forEach(row => row.classList.remove('table-active'));
+            });
+            
+            // Time range buttons
+            document.querySelectorAll('.time-range').forEach(button => {
+                button.addEventListener('click', function() {
+                    document.querySelectorAll('.time-range').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Set time range
+                    const range = this.dataset.range;
+                    if (range.endsWith('m')) {
+                        timeRange = parseInt(range);
+                    } else if (range.endsWith('h')) {
+                        timeRange = parseInt(range) * 60;
+                    }
+                    
+                    // Update chart
+                    updateHistoryChart();
+                });
+            });
+            
+            // Periodically update timestamp classes
+            setInterval(() => {
+                document.querySelectorAll('.timestamp-cell').forEach(cell => {
+                    const row = cell.closest('tr');
+                    if (row && row.hasAttribute('data-path')) {
+                        const metric = metrics[row.getAttribute('data-path')];
+                        if (metric) {
+                            updateTimestampClass(cell, metric.timestamp);
+                        }
+                    }
+                });
+            }, 10000); // Update every 10 seconds
+        });
+    </script>
+</body>
+</html>

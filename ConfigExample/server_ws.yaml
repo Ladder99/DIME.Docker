@@ -1,0 +1,5 @@
+server_ws: &server_ws
+  name: server_ws
+  connector: WebsocketServer
+  uri: ws://0.0.0.0:8092/
+  use_sink_transform: !!bool false

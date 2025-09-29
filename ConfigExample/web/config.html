@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIME Configuration Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+        }
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .connected {
+            background-color: #28a745;
+        }
+        .disconnected {
+            background-color: #dc3545;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .CodeMirror {
+            height: calc(100vh - 220px);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .action-buttons {
+            margin-top: 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .nav-tabs {
+            margin-bottom: 15px;
+        }
+        #status-message {
+            display: none;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .config-info {
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s;
+        }
+        .loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation header -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 rounded">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-gear-fill me-2"></i>DIME
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="index.html">
+                                <i class="bi bi-table me-1"></i>Data Explorer
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="stats.html">
+                                <i class="bi bi-speedometer2 me-1"></i>Connector Status
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" href="config.html">
+                                <i class="bi bi-gear me-1"></i>Configuration
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="dashboard-header">
+            <h1><i class="bi bi-gear me-2"></i>DIME Configuration Manager</h1>
+            <div class="connection-status">
+                <span id="connection-indicator" class="connection-indicator disconnected"></span>
+                <span id="connection-text">Disconnected</span>
+            </div>
+        </div>
+
+        <div class="config-info">
+            <p>Edit the DIME configuration in YAML format. Click Save to apply changes, or Restart Service to restart the DIME service with the current configuration.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <div>Configuration (YAML)</div>
+            </div>
+            <div class="card-body">
+                <textarea id="config-editor"></textarea>
+                
+                <div id="status-message" class="alert"></div>
+                
+                <div class="action-buttons">
+                    <button id="refresh-btn" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-repeat"></i> Refresh
+                    </button>
+                    <button id="save-btn" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Save Configuration
+                    </button>
+                    <button id="restart-btn" class="btn btn-warning">
+                        <i class="bi bi-power"></i> Restart Service
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/yaml/yaml.min.js"></script>
+    <script>
+        // Initialize CodeMirror editor
+        const configEditor = CodeMirror.fromTextArea(document.getElementById('config-editor'), {
+            mode: 'yaml',
+            theme: 'monokai',
+            lineNumbers: true,
+            lineWrapping: true,
+            indentUnit: 2,
+            tabSize: 2,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            foldGutter: true,
+            gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter']
+        });
+
+        // Get elements
+        const connectionIndicator = document.getElementById('connection-indicator');
+        const connectionText = document.getElementById('connection-text');
+        const statusMessage = document.getElementById('status-message');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        // API URLs
+        const baseUrl = 'http://localhost:9999';
+        const configYamlUrl = `${baseUrl}/config/yaml`;
+        const restartServiceUrl = `${baseUrl}/service/restart`;
+
+        // Connect to WebSocket server
+        function connectWebSocket() {
+            const host = 'localhost';
+            const port = 9998; // DIME WebSocket port for statistics
+            const ws = new WebSocket(`ws://${host}:${port}`);
+            
+            ws.onopen = function() {
+                console.log('Connected to DIME WebSocket server');
+                connectionIndicator.className = 'connection-indicator connected';
+                connectionText.innerText = 'Connected';
+            };
+            
+            ws.onclose = function() {
+                console.log('Disconnected from DIME WebSocket server');
+                connectionIndicator.className = 'connection-indicator disconnected';
+                connectionText.innerText = 'Disconnected';
+                
+                // Try to reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                connectionIndicator.className = 'connection-indicator disconnected';
+                connectionText.innerText = 'Disconnected';
+            };
+            
+            ws.onmessage = function(event) {
+                // We just use the WebSocket for connection status
+                // No need to process the messages in this UI
+            };
+        }
+
+        // Show loading overlay
+        function showLoading() {
+            loadingOverlay.classList.add('active');
+        }
+
+        // Hide loading overlay
+        function hideLoading() {
+            loadingOverlay.classList.remove('active');
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `alert alert-${type}`;
+            statusMessage.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Fetch configuration
+        async function fetchConfiguration() {
+            try {
+                showLoading();
+                connectionIndicator.className = 'connection-indicator connected';
+                connectionText.textContent = 'Connected';
+                
+                const response = await fetch(configYamlUrl);
+                
+                if (response.ok) {
+                    const configYaml = await response.text();
+                    configEditor.setValue(configYaml);
+                    showStatus('Configuration loaded successfully', 'success');
+                } else {
+                    throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error fetching configuration:', error);
+                connectionIndicator.className = 'connection-indicator disconnected';
+                connectionText.textContent = 'Disconnected';
+                showStatus(`Failed to load configuration: ${error.message}`, 'danger');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Save configuration
+        async function saveConfiguration() {
+            try {
+                showLoading();
+                const configYaml = configEditor.getValue();
+                
+                const response = await fetch(configYamlUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-yaml'
+                    },
+                    body: configYaml
+                });
+                
+                if (response.ok) {
+                    const updatedConfig = await response.text();
+                    configEditor.setValue(updatedConfig);
+                    showStatus('Configuration saved successfully', 'success');
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                console.error('Error saving configuration:', error);
+                showStatus(`Failed to save configuration: ${error.message}`, 'danger');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Restart service
+        async function restartService() {
+            if (!confirm('Are you sure you want to restart the DIME service? This will temporarily interrupt operations.')) {
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                const response = await fetch(restartServiceUrl);
+                
+                if (response.ok) {
+                    showStatus('DIME service restarted successfully', 'success');
+                    
+                    // Refresh configuration after a short delay
+                    setTimeout(() => {
+                        fetchConfiguration();
+                    }, 2000);
+                } else {
+                    throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error restarting service:', error);
+                showStatus(`Failed to restart service: ${error.message}`, 'danger');
+                hideLoading();
+            }
+        }
+
+        // Event listeners
+        refreshBtn.addEventListener('click', fetchConfiguration);
+        saveBtn.addEventListener('click', saveConfiguration);
+        restartBtn.addEventListener('click', restartService);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+            fetchConfiguration();
+        });
+
+        // Add spin animation to refresh button
+        refreshBtn.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            icon.style.animation = 'spin 1s linear';
+            
+            // Remove animation after a short delay
+            setTimeout(() => {
+                icon.style.animation = '';
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
