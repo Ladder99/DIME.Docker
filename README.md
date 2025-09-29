@@ -21,6 +21,10 @@ cp -r DIME.Docker/ConfigExample/* volumes/dime/configs
 
 # load image
 # email cmisztur@mriiot.com to request access
+#   offline
+# docker load -i dime_amd64.tar # AMD64 platform
+# docker load -i dime_arm64.tar # ARM64 platform
+#   online
 docker login -u your_dockerhub_username
 docker pull ladder99/dime:latest
 docker images
