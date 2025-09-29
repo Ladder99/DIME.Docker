@@ -1,7 +1,7 @@
 # DIME.Docker
 Running DIME in Docker.
 
-[Docker Installation Visual](https://raw.githack.com/ladder99/DIME.Docker/main/docker-setup-visual.html)
+[Docker Installation Visual](https://raw.githack.com/ladder99/DIME.Docker/main/docker-setup-visual.html)  
 [DIME Installation Visual](https://raw.githack.com/ladder99/DIME.Docker/main/dime-docker-visual.html)  
 
 
