@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIME.Docker Installation Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+        
+        .header p {
+            color: #94a3b8;
+            font-size: 1.2em;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .phase {
+            margin-bottom: 50px;
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+        }
+        
+        .phase:nth-child(1) { animation-delay: 0.1s; }
+        .phase:nth-child(2) { animation-delay: 0.2s; }
+        .phase:nth-child(3) { animation-delay: 0.3s; }
+        .phase:nth-child(4) { animation-delay: 0.4s; }
+        .phase:nth-child(5) { animation-delay: 0.5s; }
+        
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+        }
+        
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), transparent);
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
+        }
+        
+        .phase-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            flex-shrink: 0;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .phase-title {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+        
+        .steps-grid {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .step-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .step-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .step-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        
+        .command-box {
+            background: #0f172a;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            position: relative;
+            overflow-x: auto;
+        }
+        
+        .command-box:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+        }
+        
+        .command-line {
+            color: #22d3ee;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .command-line::before {
+            content: '$ ';
+            color: #94a3b8;
+        }
+        
+        .description {
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        
+        .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        /* Installation Method Toggle */
+        .method-selector {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .method-selector::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            animation: rotate 10s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .method-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .method-btn {
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .method-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .method-btn:hover::after {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .method-btn.offline {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+        }
+        
+        .method-btn.online {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+        
+        .method-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .method-btn:not(.active) {
+            opacity: 0.5;
+        }
+        
+        .method-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .method-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 5px 5px 5px 0;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .warning-box {
+            background: rgba(251, 146, 60, 0.1);
+            border: 1px solid rgba(251, 146, 60, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #fbbf24;
+        }
+        
+        .success-box {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.1));
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 40px;
+            animation: pulse 2s ease infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1); 
+                box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+            }
+            50% { 
+                transform: scale(1.02);
+                box-shadow: 0 0 50px rgba(34, 197, 94, 0.4);
+            }
+        }
+        
+        .volume-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .volume-item {
+            background: rgba(139, 92, 246, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .volume-item:hover {
+            background: rgba(139, 92, 246, 0.2);
+            transform: translateX(5px);
+        }
+        
+        .volume-icon {
+            font-size: 1.5em;
+        }
+        
+        .volume-path {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            color: #c084fc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐳 DIME.Docker Installation</h1>
+            <p>Complete setup guide for DIME containerized application</p>
+        </div>
+        
+        <!-- Phase 1: Initial Setup -->
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-number">1</div>
+                <div class="phase-title">Initial Setup</div>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="icon">🏠</div>
+                    <h3>Navigate to Home Directory</h3>
+                    <div class="command-box">
+                        <div class="command-line">cd ~</div>
+                    </div>
+                    <div class="description">
+                        Start from your home directory to keep the installation organized and consistent.
+                    </div>
+                    <span class="tag">Navigation</span>
+                    <span class="tag">Setup</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phase 2: Repository Clone -->
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-number">2</div>
+                <div class="phase-title">Clone Repository</div>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="icon">📦</div>
+                    <h3>Clone DIME.Docker Repository</h3>
+                    <div class="command-box">
+                        <div class="command-line">git clone https://github.com/ladder99/DIME.Docker</div>
+                    </div>
+                    <div class="description">
+                        Downloads the DIME.Docker repository containing all necessary configuration files, scripts, and examples.
+                    </div>
+                    <span class="tag">Git</span>
+                    <span class="tag">Source Code</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phase 3: Directory Structure -->
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-number">3</div>
+                <div class="phase-title">Create Volume Structure</div>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="icon">📁</div>
+                    <h3>Create Docker Volumes</h3>
+                    <div class="command-box">
+                        <div class="command-line">mkdir -p volumes/dime/configs
+mkdir -p volumes/dime/lua
+mkdir -p volumes/dime/python
+mkdir -p volumes/dime/logs</div>
+                    </div>
+                    <div class="description">
+                        Creates the necessary directory structure for Docker volumes that will persist data outside the container.
+                    </div>
+                    <div class="volume-grid">
+                        <div class="volume-item">
+                            <span class="volume-icon">⚙️</span>
+                            <span class="volume-path">/configs</span>
+                        </div>
+                        <div class="volume-item">
+                            <span class="volume-icon">📜</span>
+                            <span class="volume-path">/lua</span>
+                        </div>
+                        <div class="volume-item">
+                            <span class="volume-icon">🐍</span>
+                            <span class="volume-path">/python</span>
+                        </div>
+                        <div class="volume-item">
+                            <span class="volume-icon">📝</span>
+                            <span class="volume-path">/logs</span>
+                        </div>
+                    </div>
+                    <span class="tag">Volumes</span>
+                    <span class="tag">Persistence</span>
+                </div>
+                
+                <div class="step-card">
+                    <div class="icon">📋</div>
+                    <h3>Copy Configuration Artifacts</h3>
+                    <div class="command-box">
+                        <div class="command-line">cp DIME.Docker/nlog.config volumes/dime/nlog.config
+cp -r DIME.Docker/Lua/* volumes/dime/lua
+cp -r DIME.Docker/Python/* volumes/dime/python
+cp -r DIME.Docker/ConfigExample/* volumes/dime/configs</div>
+                    </div>
+                    <div class="description">
+                        Copies all configuration files, Lua scripts, Python scripts, and example configs to the volume directories.
+                    </div>
+                    <span class="tag">Configuration</span>
+                    <span class="tag">Scripts</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phase 4: Docker Image -->
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-number">4</div>
+                <div class="phase-title">Load Docker Image</div>
+            </div>
+            
+            <div class="method-selector">
+                <h3 style="margin-bottom: 10px; font-size: 1.3em;">Choose Installation Method</h3>
+                <p style="color: #94a3b8; margin-bottom: 20px;">Select how you want to obtain the Docker image</p>
+                <div class="method-buttons">
+                    <button class="method-btn offline" onclick="selectMethod('offline')">
+                        🔌 Offline Installation
+                    </button>
+                    <button class="method-btn online active" onclick="selectMethod('online')">
+                        🌐 Online Installation
+                    </button>
+                </div>
+            </div>
+            
+            <div class="steps-grid">
+                <!-- Offline Method -->
+                <div id="offline-method" class="method-content">
+                    <div class="step-card">
+                        <div class="icon">💾</div>
+                        <h3>Load Image from File</h3>
+                        <div class="command-box">
+                            <div class="command-line"># For AMD64 platform
+docker load -i dime_amd64.tar
+
+# For ARM64 platform
+docker load -i dime_arm64.tar</div>
+                        </div>
+                        <div class="description">
+                            Load the Docker image from a tar file. Choose the correct file based on your system architecture.
+                        </div>
+                        <span class="tag">Offline</span>
+                        <span class="tag">TAR Archive</span>
+                        <span class="tag">Platform-Specific</span>
+                    </div>
+                </div>
+                
+                <!-- Online Method -->
+                <div id="online-method" class="method-content active">
+                    <div class="step-card">
+                        <div class="icon">☁️</div>
+                        <h3>Pull Image from Docker Hub</h3>
+                        <div class="command-box">
+                            <div class="command-line">docker login -u your_dockerhub_username
+docker pull ladder99/dime:latest
+docker images</div>
+                        </div>
+                        <div class="description">
+                            Log in to Docker Hub and pull the latest DIME image. The last command verifies the image was downloaded successfully.
+                        </div>
+                        <span class="tag">Online</span>
+                        <span class="tag">Docker Hub</span>
+                        <span class="tag">Latest Version</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phase 5: Run Container -->
+        <div class="phase">
+            <div class="phase-header">
+                <div class="phase-number">5</div>
+                <div class="phase-title">Run Container</div>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="icon">🚀</div>
+                    <h3>Launch DIME Container</h3>
+                    <div class="command-box">
+                        <div class="command-line">docker run \
+   -p 5000:5000 \
+   -p 7878:7878 \
+   -p 8080:8080 \
+   -p 8081:8081 \
+   -p 8082:8082 \
+   -p 9998:9998 \
+   -p 9999:9999 \
+   -v ~/volumes/dime/nlog.config:/app/nlog.config \
+   -v ~/volumes/dime/configs:/app/Configs \
+   -v ~/volumes/dime/lua:/app/Lua \
+   -v ~/volumes/dime/python:/app/Python \
+   -v ~/volumes/dime/logs:/app/Logs \
+   ladder99/dime:latest</div>
+                    </div>
+                    <div class="description">
+                        Starts the DIME container with all necessary port mappings and volume mounts.
+                    </div>
+                    
+                    <span class="tag">Docker Run</span>
+                    <span class="tag">Port Mapping</span>
+                    <span class="tag">Volume Mounting</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="success-box">
+            <h2 style="font-size: 2em; margin-bottom: 10px;">✨ DIME is Running!</h2>
+            <p style="font-size: 1.1em; color: #86efac;">Your DIME container is now active with all services accessible through the configured ports.</p>
+        </div>
+    </div>
+    
+    <script>
+        function selectMethod(method) {
+            // Update button states
+            document.querySelectorAll('.method-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector('.method-btn.' + method).classList.add('active');
+            
+            // Update content visibility
+            document.querySelectorAll('.method-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(method + '-method').classList.add('active');
+        }
+        
+        // Add hover effects to command boxes
+        document.querySelectorAll('.command-box').forEach(box => {
+            box.addEventListener('click', function() {
+                const range = document.createRange();
+                range.selectNodeContents(this);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                // Visual feedback
+                this.style.borderColor = '#22c55e';
+                setTimeout(() => {
+                    this.style.borderColor = '';
+                }, 1000);
+            });
+        });
+    </script>
+</body>
+</html>

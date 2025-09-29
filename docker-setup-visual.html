@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Installation Visual Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, #4CAF50, #2196F3);
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 40px;
+            opacity: 0;
+            animation: fadeInSlide 0.6s forwards;
+        }
+        
+        .step:nth-child(1) { animation-delay: 0.1s; }
+        .step:nth-child(2) { animation-delay: 0.2s; }
+        .step:nth-child(3) { animation-delay: 0.3s; }
+        .step:nth-child(4) { animation-delay: 0.4s; }
+        .step:nth-child(5) { animation-delay: 0.5s; }
+        .step:nth-child(6) { animation-delay: 0.6s; }
+        .step:nth-child(7) { animation-delay: 0.7s; }
+        .step:nth-child(8) { animation-delay: 0.8s; }
+        .step:nth-child(9) { animation-delay: 0.9s; }
+        
+        @keyframes fadeInSlide {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
+        
+        .step:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+        
+        .step-content {
+            flex: 1;
+            padding: 0 40px;
+        }
+        
+        .step:nth-child(odd) .step-content {
+            text-align: right;
+        }
+        
+        .step-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .step-number {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            z-index: 10;
+        }
+        
+        .command {
+            background: #1e1e1e;
+            color: #4CAF50;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .command::before {
+            content: '$ ';
+            color: #888;
+        }
+        
+        .description {
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 40px;
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .whale {
+            font-size: 3em;
+            animation: swim 3s ease-in-out infinite;
+        }
+        
+        @keyframes swim {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(20px); }
+        }
+        
+        .tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            margin: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .timeline::before {
+                left: 30px;
+            }
+            
+            .step {
+                flex-direction: column !important;
+            }
+            
+            .step-content {
+                text-align: left !important;
+                padding: 0 0 0 60px;
+            }
+            
+            .step-number {
+                left: 30px;
+                transform: translateX(-50%);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐳 Docker Installation & Setup Process</h1>
+        
+        <div class="timeline">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">🏠</div>
+                        <div class="command">cd ~</div>
+                        <div class="description">
+                            <strong>Navigate to Home Directory</strong><br>
+                            Moves to your user's home directory to ensure we're starting from a clean, known location.
+                        </div>
+                        <span class="tag">Navigation</span>
+                        <span class="tag">Setup</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">📥</div>
+                        <div class="command">curl -fsSL https://get.docker.com -o get-docker.sh</div>
+                        <div class="description">
+                            <strong>Download Docker Installation Script</strong><br>
+                            Downloads the official Docker installation script from Docker's servers. The flags mean:
+                            <br>• <code>-f</code>: Fail silently on errors
+                            <br>• <code>-s</code>: Silent mode
+                            <br>• <code>-S</code>: Show errors
+                            <br>• <code>-L</code>: Follow redirects
+                        </div>
+                        <span class="tag">Download</span>
+                        <span class="tag">Script</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">⚙️</div>
+                        <div class="command">sudo sh ./get-docker.sh</div>
+                        <div class="description">
+                            <strong>Run Installation Script</strong><br>
+                            Executes the Docker installation script with superuser privileges. This installs Docker Engine, Docker CLI, and containerd on your system.
+                        </div>
+                        <span class="tag">Installation</span>
+                        <span class="tag">Root Required</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">👥</div>
+                        <div class="command">sudo groupadd docker</div>
+                        <div class="description">
+                            <strong>Create Docker Group</strong><br>
+                            Creates a new system group called "docker". This group will have permissions to run Docker commands without sudo.
+                        </div>
+                        <span class="tag">Security</span>
+                        <span class="tag">Groups</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">👤</div>
+                        <div class="command">sudo usermod -aG docker $USER</div>
+                        <div class="description">
+                            <strong>Add Current User to Docker Group</strong><br>
+                            Adds your current user account to the docker group, allowing you to run Docker commands without using sudo every time.
+                        </div>
+                        <span class="tag">Permissions</span>
+                        <span class="tag">User Management</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">🔄</div>
+                        <div class="command">newgrp docker</div>
+                        <div class="description">
+                            <strong>Activate Group Membership</strong><br>
+                            Immediately activates the docker group membership for the current shell session without needing to log out and back in.
+                        </div>
+                        <span class="tag">Session</span>
+                        <span class="tag">Groups</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">7</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">🚀</div>
+                        <div class="command">sudo systemctl enable docker</div>
+                        <div class="description">
+                            <strong>Enable Docker at Boot</strong><br>
+                            Configures Docker to start automatically when the system boots up. This ensures Docker is always available after a restart.
+                        </div>
+                        <span class="tag">Autostart</span>
+                        <span class="tag">System Service</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">8</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">▶️</div>
+                        <div class="command">sudo systemctl start docker</div>
+                        <div class="description">
+                            <strong>Start Docker Service</strong><br>
+                            Immediately starts the Docker daemon service. After this, Docker is running and ready to accept commands.
+                        </div>
+                        <span class="tag">Service</span>
+                        <span class="tag">Daemon</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">9</div>
+                <div class="step-content">
+                    <div class="step-card">
+                        <div class="icon">✅</div>
+                        <div class="command">docker run hello-world</div>
+                        <div class="description">
+                            <strong>Test Docker Installation</strong><br>
+                            Runs a test container to verify Docker is installed and working correctly. This downloads and runs a small test image that prints a success message.
+                        </div>
+                        <span class="tag">Verification</span>
+                        <span class="tag">Test</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="success-message">
+            <div class="whale">🐋</div>
+            <h2>Docker Successfully Installed!</h2>
+            <p>Your system is now ready to run containerized applications.</p>
+            <p style="margin-top: 15px; opacity: 0.9;">The "hello-world" container confirms everything is working properly.</p>
+        </div>
+    </div>
+</body>
+</html>
